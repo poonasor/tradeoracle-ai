@@ -1,12 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { AnalysisResult } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeStock = async (ticker: string): Promise<AnalysisResult> => {
-  if (!apiKey) {
+  if (!process.env.API_KEY) {
     throw new Error("API Key is missing. Please check your configuration.");
   }
 
@@ -70,7 +68,8 @@ export const analyzeStock = async (ticker: string): Promise<AnalysisResult> => {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        temperature: 0.2, 
+        temperature: 0.2,
+        responseMimeType: "application/json",
       },
     });
 

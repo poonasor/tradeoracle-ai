@@ -69,7 +69,6 @@ export const analyzeStock = async (ticker: string): Promise<AnalysisResult> => {
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.2,
-        responseMimeType: "application/json",
       },
     });
 

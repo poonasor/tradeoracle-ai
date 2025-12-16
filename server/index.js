@@ -23,7 +23,7 @@ app.get("/api/health", (_req, res) => {
 
 app.post("/api/create-checkout-session", async (req, res) => {
   try {
-    const { uid } = req.body || {};
+    const { uid, email } = req.body || {};
     if (!uid) {
       res.status(400).json({ error: "Missing uid" });
       return;
@@ -31,10 +31,16 @@ app.post("/api/create-checkout-session", async (req, res) => {
 
     const origin = req.headers.origin || "http://localhost:3000";
 
+    const customerEmail =
+      typeof email === "string" && email.trim().length > 0
+        ? email.trim()
+        : undefined;
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       client_reference_id: uid,
       metadata: { uid: String(uid) },
+      ...(customerEmail ? { customer_email: customerEmail } : {}),
       line_items: [
         {
           quantity: 1,
@@ -51,7 +57,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
       subscription_data: {
         trial_period_days: 7,
       },
-      success_url: `${origin}/upgrade?success=1&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/dashboard?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/upgrade?canceled=1`,
     });
 

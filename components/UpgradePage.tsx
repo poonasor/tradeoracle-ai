@@ -96,6 +96,7 @@ const UpgradePage: React.FC = () => {
 
     try {
       let effectiveUid = uid;
+      let effectiveEmail = auth.currentUser?.email || email.trim();
 
       if (!effectiveUid) {
         const cred = await createUserWithEmailAndPassword(
@@ -104,6 +105,7 @@ const UpgradePage: React.FC = () => {
           password
         );
         effectiveUid = cred.user.uid;
+        effectiveEmail = cred.user.email || effectiveEmail;
         try {
           await setDoc(
             doc(db, "users", cred.user.uid),
@@ -124,7 +126,10 @@ const UpgradePage: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ uid: effectiveUid }),
+        body: JSON.stringify({
+          uid: effectiveUid,
+          email: effectiveEmail || null,
+        }),
       });
 
       if (!res.ok) {

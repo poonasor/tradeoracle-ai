@@ -20,6 +20,7 @@ import { AnalysisResult, LoadingState, UserTier } from "./types";
 import AnalysisDisplay from "./components/AnalysisDisplay";
 import PaywallModal from "./components/PaywallModal";
 import UpgradePage from "./components/UpgradePage";
+import DashboardPage from "./components/DashboardPage";
 
 const GUEST_LIMIT = 3;
 
@@ -132,6 +133,7 @@ const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/upgrade" element={<UpgradePage />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
       <Route
         path="/"
         element={

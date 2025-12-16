@@ -1,0 +1,5 @@
+{
+  "name": "TradeOracle AI",
+  "description": "An intelligent technical stock analysis assistant powered by Gemini. Get strategic entry, exit, and risk management insights instantly.",
+  "requestFramePermissions": []
+}

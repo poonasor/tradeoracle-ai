@@ -1,18 +1,41 @@
-import React, { useState } from 'react';
-import { Search, Loader2, BarChart2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Loader2, BarChart2, Crown, User, Lock, LogOut, Star, AlertCircle } from 'lucide-react';
 import { analyzeStock } from './services/geminiService';
-import { AnalysisResult, LoadingState } from './types';
+import { AnalysisResult, LoadingState, UserTier } from './types';
 import AnalysisDisplay from './components/AnalysisDisplay';
+import PaywallModal from './components/PaywallModal';
+
+const GUEST_LIMIT = 3;
 
 const App: React.FC = () => {
   const [ticker, setTicker] = useState('');
   const [loadingState, setLoadingState] = useState<LoadingState>(LoadingState.IDLE);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // User & Subscription State
+  const [userTier, setUserTier] = useState<UserTier>(UserTier.GUEST);
+  const [guestSearchCount, setGuestSearchCount] = useState(0);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Initialize from LocalStorage
+  useEffect(() => {
+    const storedSearches = localStorage.getItem('guest_searches');
+    if (storedSearches) {
+      const history = JSON.parse(storedSearches);
+      setGuestSearchCount(history.length);
+    }
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticker.trim()) return;
+
+    // Guest Limit Check
+    if (userTier === UserTier.GUEST && guestSearchCount >= GUEST_LIMIT) {
+      setShowPaywall(true);
+      return;
+    }
 
     setLoadingState(LoadingState.ANALYZING);
     setError(null);
@@ -22,14 +45,42 @@ const App: React.FC = () => {
       const data = await analyzeStock(ticker.toUpperCase());
       setResult(data);
       setLoadingState(LoadingState.SUCCESS);
+
+      // Track Guest Usage
+      if (userTier === UserTier.GUEST) {
+        const storedSearches = JSON.parse(localStorage.getItem('guest_searches') || '[]');
+        // We track just the count effectively for this demo, but storing tickers is better
+        const newHistory = [...storedSearches, ticker.toUpperCase()];
+        localStorage.setItem('guest_searches', JSON.stringify(newHistory));
+        setGuestSearchCount(newHistory.length);
+      }
+
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
       setLoadingState(LoadingState.ERROR);
     }
   };
 
+  // Mock "Sign In / Upgrade" function for demo purposes
+  const toggleUserTier = () => {
+    if (userTier === UserTier.GUEST) {
+      setUserTier(UserTier.PAID);
+      setShowPaywall(false);
+      alert("Demo: You are now logged in as a Paid Subscriber.");
+    } else {
+      setUserTier(UserTier.GUEST);
+      alert("Demo: You are logged out (Guest Mode).");
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background text-slate-200 p-4 md:p-8 selection:bg-primary selection:text-white">
+    <div className="min-h-screen bg-background text-slate-200 p-4 md:p-8 selection:bg-primary selection:text-white relative">
+      <PaywallModal 
+        isOpen={showPaywall} 
+        onClose={() => setShowPaywall(false)} 
+        onUpgrade={toggleUserTier}
+      />
+
       <div className="max-w-7xl mx-auto">
         {/* Header Navigation */}
         <header className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
@@ -38,39 +89,82 @@ const App: React.FC = () => {
               <BarChart2 className="text-white w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">TradeOracle AI</h1>
+              <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                TradeOracle AI
+                {userTier === UserTier.PAID && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wide border border-amber-500/30">Pro</span>
+                )}
+              </h1>
               <p className="text-xs text-slate-500 font-medium">Technical Analysis Assistant</p>
             </div>
           </div>
           
-          <form onSubmit={handleSearch} className="relative w-full md:w-96 group">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-4 py-3 bg-surface border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
-              placeholder="Enter symbol (e.g. AAPL, BTC)..."
-              value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
-              disabled={loadingState === LoadingState.ANALYZING}
-            />
-            <button
-              type="submit"
-              disabled={loadingState === LoadingState.ANALYZING || !ticker}
-              className="absolute right-2 top-2 bottom-2 bg-slate-700 hover:bg-primary text-white px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loadingState === LoadingState.ANALYZING ? (
-                <>
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+             <form onSubmit={handleSearch} className="relative w-full md:w-80 group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-4 py-3 bg-surface border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
+                placeholder="Enter symbol (e.g. AAPL)..."
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value)}
+                disabled={loadingState === LoadingState.ANALYZING}
+              />
+              <button
+                type="submit"
+                disabled={loadingState === LoadingState.ANALYZING || !ticker}
+                className="absolute right-2 top-2 bottom-2 bg-slate-700 hover:bg-primary text-white px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loadingState === LoadingState.ANALYZING ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Analyzing</span>
+                ) : (
+                  'Analyze'
+                )}
+              </button>
+            </form>
+
+            <button 
+              onClick={toggleUserTier}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all border ${
+                userTier === UserTier.PAID 
+                  ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500 border-transparent text-white shadow-lg shadow-amber-500/20 hover:scale-105'
+              }`}
+            >
+              {userTier === UserTier.PAID ? (
+                <>
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
                 </>
               ) : (
-                'Analyze'
+                <>
+                  <Crown className="w-4 h-4 fill-white" />
+                  <span>Upgrade to Pro</span>
+                </>
               )}
             </button>
-          </form>
+          </div>
         </header>
+
+        {/* Guest Usage Indicator */}
+        {userTier === UserTier.GUEST && (
+          <div className="mb-6 flex justify-center">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700 backdrop-blur-sm">
+               <span className="text-xs text-slate-400">Guest Searches:</span>
+               <div className="flex gap-1">
+                 {[...Array(GUEST_LIMIT)].map((_, i) => (
+                   <div 
+                    key={i} 
+                    className={`w-2 h-2 rounded-full ${i < guestSearchCount ? 'bg-primary' : 'bg-slate-600'}`}
+                   />
+                 ))}
+               </div>
+               <span className="text-xs text-slate-400 ml-1">{GUEST_LIMIT - guestSearchCount} remaining</span>
+            </div>
+          </div>
+        )}
 
         {/* Content Area */}
         <main>
@@ -88,17 +182,36 @@ const App: React.FC = () => {
                 {['SPY', 'TSLA', 'NVDA', 'BTC-USD'].map(sym => (
                   <button 
                     key={sym}
-                    onClick={() => {
-                        setTicker(sym);
-                        // Small timeout to allow state update before submit if we wanted to auto-submit, 
-                        // but simply filling it is good UX.
-                    }}
+                    onClick={() => setTicker(sym)}
                     className="px-4 py-2 bg-surface hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-mono text-slate-300 transition-colors"
                   >
                     ${sym}
                   </button>
                 ))}
               </div>
+
+              {/* Feature Upsell for Guests */}
+              {userTier === UserTier.GUEST && (
+                <div className="mt-12 pt-12 border-t border-slate-800 w-full max-w-2xl">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                    <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
+                      <Lock className="w-5 h-5 text-slate-500 mb-2" />
+                      <h4 className="font-semibold text-slate-300 text-sm">Unlimited Analysis</h4>
+                      <p className="text-xs text-slate-500 mt-1">Remove the 3-search limit.</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
+                      <Lock className="w-5 h-5 text-slate-500 mb-2" />
+                      <h4 className="font-semibold text-slate-300 text-sm">Personal Watchlist</h4>
+                      <p className="text-xs text-slate-500 mt-1">Save your favorite setups.</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
+                      <Lock className="w-5 h-5 text-slate-500 mb-2" />
+                      <h4 className="font-semibold text-slate-300 text-sm">Smart Alerts</h4>
+                      <p className="text-xs text-slate-500 mt-1">Get notified on price targets.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -132,7 +245,24 @@ const App: React.FC = () => {
           )}
 
           {loadingState === LoadingState.SUCCESS && result && (
-            <AnalysisDisplay data={result} />
+            <div className="space-y-6">
+              {/* Mock Watchlist Button */}
+              <div className="flex justify-end">
+                <button 
+                  disabled={userTier === UserTier.GUEST}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    userTier === UserTier.PAID 
+                      ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/20' 
+                      : 'bg-slate-900 text-slate-500 cursor-not-allowed border border-slate-800'
+                  }`}
+                  onClick={() => alert("Added to watchlist (Mock)")}
+                >
+                  {userTier === UserTier.GUEST ? <Lock className="w-3 h-3" /> : <Star className="w-3 h-3" />}
+                  {userTier === UserTier.GUEST ? 'Upgrade to Save' : 'Save to Watchlist'}
+                </button>
+              </div>
+              <AnalysisDisplay data={result} />
+            </div>
           )}
         </main>
         
@@ -152,24 +282,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-function AlertCircle(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" x2="12" y1="8" y2="12" />
-      <line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-  );
-}

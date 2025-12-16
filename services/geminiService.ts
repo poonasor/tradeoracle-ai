@@ -18,7 +18,17 @@ export const analyzeStock = async (ticker: string): Promise<AnalysisResult> => {
     Step 2: Determine the best entry price, stop loss, and 3 exit targets (Conservative, Moderate, Aggressive).
     Step 3: Calculate the Risk/Reward ratio.
     Step 4: Provide a summary of the technical setup (Moving Averages, RSI, MACD, etc.).
-    Step 5: Generate a 'chartData' array containing 30 representative daily closing prices for the last 30 days that visually matches the trend you are describing. Ensure the last price matches the current price.
+    Step 5: Generate a 'chartData' array containing the last 60 trading days (approx 3 months). 
+            For EACH day, provide:
+            - "date" (MM-DD)
+            - "price" (closing price)
+            - "sma50" (50-day Simple Moving Average value)
+            - "sma200" (200-day Simple Moving Average value)
+            - "rsi" (14-day RSI value, 0-100)
+            - "macdLine" (MACD line value)
+            - "macdSignal" (Signal line value)
+            - "macdHistogram" (MACD Histogram value)
+            Ensure the last data point matches the current price and the trend visually matches your analysis.
 
     OUTPUT FORMAT:
     Return ONLY a valid JSON object. Do not wrap it in markdown code blocks. The JSON must match this structure exactly:
@@ -39,7 +49,18 @@ export const analyzeStock = async (ticker: string): Promise<AnalysisResult> => {
       "summary": "string",
       "supportLevels": [number, number],
       "resistanceLevels": [number, number],
-      "chartData": [ { "date": "MM-DD", "price": number } ]
+      "chartData": [ 
+        { 
+          "date": "string", 
+          "price": number, 
+          "sma50": number, 
+          "sma200": number, 
+          "rsi": number,
+          "macdLine": number,
+          "macdSignal": number,
+          "macdHistogram": number
+        } 
+      ]
     }
   `;
 
@@ -49,7 +70,6 @@ export const analyzeStock = async (ticker: string): Promise<AnalysisResult> => {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        // responseMimeType and responseSchema are NOT allowed when using googleSearch tool
         temperature: 0.2, 
       },
     });
